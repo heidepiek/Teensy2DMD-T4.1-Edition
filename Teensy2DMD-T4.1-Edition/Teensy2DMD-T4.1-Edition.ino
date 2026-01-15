@@ -28,7 +28,7 @@ int defaultBrightness = 30;
 
 rgb24 tColour = {0x00, 0xff, 0x00};
 ScrollMode  tMode = wrapForward;   
-int tSpeed = 10;
+int tSpeed = 10; // txt speed
 fontChoices  tFont = font3x5; 
 char tText[50] = "Undefined text message";
 int tLoopCount = 1;
@@ -36,22 +36,18 @@ int tLoopCount = 1;
 const rgb24 COLOR_BLACK = { 0, 0, 0 };
 
 // --- MATRIX CONFIGURATIE ---
-// --- MATRIX CONFIGURATIE (STRICT VOOR 4.0.3) ---
 #define COLOR_DEPTH 24               
 const uint16_t kMatrixWidth = 128;        
 const uint16_t kMatrixHeight = 32;       
 const uint8_t kRefreshDepth = 36;       
 const uint8_t kDmaBufferRows = 4;       
 const uint8_t kPanelType = SMARTMATRIX_HUB75_32ROW_MOD16SCAN; 
-
-// Gebruik SMARTMATRIX_OPTIONS_NONE om "not declared" fouten te voorkomen
 const uint32_t kMatrixOptions = (SMARTMATRIX_OPTIONS_NONE);
 
-// --- ALLOCATIE (DIT MOET PRECIES ZO STAAN) ---
 SMARTMATRIX_ALLOCATE_BUFFERS(matrix, kMatrixWidth, kMatrixHeight, kRefreshDepth, kDmaBufferRows, kPanelType, kMatrixOptions);
 SMARTMATRIX_ALLOCATE_BACKGROUND_LAYER(backgroundLayer, kMatrixWidth, kMatrixHeight, COLOR_DEPTH, SM_BACKGROUND_OPTIONS_NONE);
 SMARTMATRIX_ALLOCATE_SCROLLING_LAYER(scrollingLayer, kMatrixWidth, kMatrixHeight, COLOR_DEPTH, SM_SCROLLING_OPTIONS_NONE);
-// --- DECODER ---
+
 GifDecoder<kMatrixWidth, kMatrixHeight, 12> decoder;
 
 // --- CALLBACK FUNCTIES ---
@@ -111,21 +107,6 @@ void help(void)
   DSERIALprintln(F("Status: System Ready"));
 }
 
-int count_files(int *file_count, long *byte_count) {
-  *file_count = 0;
-  *byte_count = 0;
-  FsFile root = sd.open("/"); 
-  FsFile file;
-  while (file.openNext(&root)) {
-    if (!file.isDir()) {
-      *file_count += 1;
-      *byte_count += file.fileSize();
-    }
-    file.close();
-  }
-  return 0;
-}
-
 // --- SETUP ---
 void setup()
 {
@@ -147,7 +128,6 @@ void setup()
   matrix.addLayer(&backgroundLayer);
   matrix.addLayer(&scrollingLayer);
   
-  matrix.setRefreshRate(60); // Voor stabiliteit op P4 panelen
   matrix.setBrightness(defaultBrightness);
   matrix.setRefreshRate(60);
   matrix.begin();
@@ -155,17 +135,25 @@ void setup()
   backgroundLayer.fillScreen(COLOR_BLACK);
   backgroundLayer.swapBuffers(false);
 
+  // --- RETROPIE WELCOME TEXT ---
+  scrollingLayer.setColor({0x00, 0xff, 0x00}); // Retro groen
+  scrollingLayer.setMode(wrapForward);
+  scrollingLayer.setSpeed(35); 
+  scrollingLayer.setFont(font3x5); // Dit font gebruikt jouw code al, dus dit MOET werken
+  scrollingLayer.start("*** RETROPIE ARCADE SYSTEM READY ***", 1); 
+  
+  delay(8500);
+
+  // Toon help in Serial Monitor
   help();
 
-// --- AUTO-START VOOR ARCADE MARQUEE ---
-  delay(500); // Korte pauze om SD-kaart rust te geven
+  // --- AUTO-START GIF ---
   if (openGifFilenameByFilename("/mariobros.gif") >= 0) {
       backgroundLayer.fillScreen(COLOR_BLACK);
       backgroundLayer.swapBuffers();
       decoder.startDecoding();
-      DSERIALprintln(F("Arcade Marquee: mariobros.gif gestart!"));
+      DSERIALprintln(F("Arcade Marquee: mariobros.gif started!"));
   }
-  
 }
 
 // --- LOOP ---
@@ -306,8 +294,7 @@ void loop(void)
     if (wcreceive(0, 0)) { DSERIALprintln(F("Transfer failed!")); }
     else { DSERIALprintln(F("Transfer success!")); }
   }
-  else if (!strcmp_P(cmd, PSTR("SZ")))
-  {
+  else if (!strcmp_P(cmd, PSTR("SZ"))) {
     if (!fout.open(param, O_READ)) { DSERIALprintln(F("File open failed")); }
     else {
       Filesleft = 1;
